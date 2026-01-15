@@ -1119,8 +1119,11 @@ if(LINUX)
     # Fully static musl build: no dynamic dependencies at all
     target_link_options(${bun} PUBLIC
       -static              # Force all static linking
-      -static-libstdc++    # Static GNU C++ stdlib
-      -static-libgcc       # Static GCC runtime
+    )
+    # Explicitly link static C++ and GCC libraries
+    target_link_libraries(${bun} PUBLIC 
+      -static-libstdc++
+      -static-libgcc
     )
     message(STATUS "Building fully static musl binary")
   else()
@@ -1191,10 +1194,16 @@ elseif(APPLE)
 else()
   set(BUN_SYMBOLS_PATH ${CWD}/src/symbols.dyn)
   set(BUN_LINKER_LDS_PATH ${CWD}/src/linker.lds)
+  # Static musl builds cannot use -rdynamic or --dynamic-list
+  if(NOT STATIC_MUSL)
+    target_link_options(${bun} PUBLIC
+      -Bsymbolics-functions
+      -rdynamic
+      -Wl,--dynamic-list=${BUN_SYMBOLS_PATH}
+    )
+  endif()
+  # Always use version script for symbol visibility control
   target_link_options(${bun} PUBLIC
-    -Bsymbolics-functions
-    -rdynamic
-    -Wl,--dynamic-list=${BUN_SYMBOLS_PATH}
     -Wl,--version-script=${BUN_LINKER_LDS_PATH}
   )
   set_target_properties(${bun} PROPERTIES LINK_DEPENDS ${BUN_LINKER_LDS_PATH})
@@ -1298,7 +1307,21 @@ if(LINUX)
   target_link_libraries(${bun} PRIVATE c pthread dl)
 
   # Force static libatomic for static musl builds
-  if(STATIC_MUSL OR USE_STATIC_LIBATOMIC)
+  if(STATIC_MUSL)
+    # Find static libatomic explicitly
+    # CMAKE_FIND_LIBRARY_SUFFIXES controls which library extensions find_library looks for
+    set(CMAKE_FIND_LIBRARY_SUFFIXES_OLD ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+    find_library(LIBATOMIC_STATIC NAMES atomic PATHS /usr/lib /usr/lib/gcc/*/* NO_DEFAULT_PATH)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_OLD})
+    
+    if(LIBATOMIC_STATIC)
+      message(STATUS "Found static libatomic: ${LIBATOMIC_STATIC}")
+      target_link_libraries(${bun} PRIVATE ${LIBATOMIC_STATIC})
+    else()
+      message(FATAL_ERROR "Static libatomic.a not found for STATIC_MUSL build")
+    endif()
+  elseif(USE_STATIC_LIBATOMIC)
     target_link_libraries(${bun} PRIVATE libatomic.a)
   else()
     target_link_libraries(${bun} PUBLIC libatomic.so)

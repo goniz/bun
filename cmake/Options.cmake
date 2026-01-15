@@ -82,6 +82,11 @@ if(LINUX)
   endif()
 
   optionx(ABI "musl|gnu" "The ABI to use (e.g. musl, gnu)" DEFAULT ${DEFAULT_ABI})
+  
+  # Static musl builds produce fully static binaries with no dynamic dependencies
+  if(ABI STREQUAL "musl")
+    optionx(STATIC_MUSL BOOL "Build fully static binary on musl (no dynamic libs)" DEFAULT OFF)
+  endif()
 endif()
 
 if(ARCH STREQUAL "x64")

@@ -369,6 +369,40 @@ $ bun run build -DUSE_STATIC_LIBATOMIC=OFF
 
 The built version of Bun may not work on other systems if compiled this way.
 
+### Building Static Musl Binaries
+
+For fully static binaries with no runtime dependencies (recommended for containers and cross-distro deployment):
+
+**Prerequisites** (Alpine Linux 3.22+):
+
+```bash
+$ apk add build-base bash cmake ninja git libstdc++-dev
+```
+
+**Build command**:
+
+```bash
+$ cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DABI=musl -DSTATIC_MUSL=ON .
+$ ninja
+```
+
+**Verify static linking**:
+
+```bash
+$ ./scripts/verify-static-musl.sh build/bun
+```
+
+The resulting binary will have:
+
+- No dynamic library dependencies (verified by `ldd`)
+- No dynamic linker/interpreter
+- Runs on any Linux distribution (musl or glibc)
+- Works in minimal containers (scratch, distroless)
+
+**Note**: Static builds require external CA certificates for HTTPS. Set `SSL_CERT_FILE` or `SSL_CERT_DIR` environment variables.
+
+See [docs/static-builds.md](docs/static-builds.md) for detailed information, deployment examples, and troubleshooting.
+
 ## Using bun-debug
 
 - Disable logging: `BUN_DEBUG_QUIET_LOGS=1 bun-debug ...` (to disable all debug logging)

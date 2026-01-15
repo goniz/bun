@@ -19,7 +19,7 @@ echo "✓ Binary is statically linked"
 echo -e "\n[2] LDD check:"
 LDD_OUTPUT=$(ldd "$BUN_BIN" 2>&1 || true)
 echo "$LDD_OUTPUT"
-if echo "$LDD_OUTPUT" | grep -qE "(not a dynamic|statically linked|not dynamic)"; then
+if echo "$LDD_OUTPUT" | grep -qE "(not a dynamic|statically linked|Not a valid dynamic|not dynamic)"; then
   echo "✓ No dynamic dependencies"
 else
   echo "❌ ERROR: Binary has dynamic dependencies"

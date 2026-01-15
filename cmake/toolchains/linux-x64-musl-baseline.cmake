@@ -5,3 +5,11 @@ set(ABI musl)
 
 set(CMAKE_C_COMPILER_WORKS ON)
 set(CMAKE_CXX_COMPILER_WORKS ON)
+
+# When building static musl, prefer static libraries
+if(STATIC_MUSL)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  set(BUILD_SHARED_LIBS OFF)
+  set(CMAKE_LINK_SEARCH_START_STATIC ON)
+  set(CMAKE_LINK_SEARCH_END_STATIC ON)
+endif()

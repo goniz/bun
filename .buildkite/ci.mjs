@@ -58,6 +58,9 @@ function getTargetKey(target) {
   if (abi) {
     key += `-${abi}`;
   }
+  if (target.static) {
+    key += "-static";
+  }
   if (baseline) {
     key += "-baseline";
   }
@@ -77,6 +80,9 @@ function getTargetLabel(target) {
   if (abi) {
     label += `-${abi}`;
   }
+  if (target.static) {
+    label += "-static";
+  }
   if (baseline) {
     label += "-baseline";
   }
@@ -92,6 +98,7 @@ function getTargetLabel(target) {
  * @property {Arch} arch
  * @property {Abi} [abi]
  * @property {boolean} [baseline]
+ * @property {boolean} [static]
  * @property {Profile} [profile]
  * @property {Distro} [distro]
  * @property {string} release
@@ -112,6 +119,10 @@ const buildPlatforms = [
   { os: "linux", arch: "aarch64", abi: "musl", distro: "alpine", release: "3.22" },
   { os: "linux", arch: "x64", abi: "musl", distro: "alpine", release: "3.22" },
   { os: "linux", arch: "x64", abi: "musl", baseline: true, distro: "alpine", release: "3.22" },
+  // Static musl builds (fully static binaries with no dynamic dependencies)
+  { os: "linux", arch: "x64", abi: "musl", static: true, distro: "alpine", release: "3.22" },
+  { os: "linux", arch: "aarch64", abi: "musl", static: true, distro: "alpine", release: "3.22" },
+  { os: "linux", arch: "x64", abi: "musl", static: true, baseline: true, distro: "alpine", release: "3.22" },
   { os: "windows", arch: "x64", release: "2019" },
   { os: "windows", arch: "x64", baseline: true, release: "2019" },
 ];
@@ -134,6 +145,19 @@ const testPlatforms = [
   { os: "linux", arch: "aarch64", abi: "musl", distro: "alpine", release: "3.22", tier: "latest" },
   { os: "linux", arch: "x64", abi: "musl", distro: "alpine", release: "3.22", tier: "latest" },
   { os: "linux", arch: "x64", abi: "musl", baseline: true, distro: "alpine", release: "3.22", tier: "latest" },
+  // Static musl test platforms
+  { os: "linux", arch: "x64", abi: "musl", static: true, distro: "alpine", release: "3.22", tier: "latest" },
+  { os: "linux", arch: "aarch64", abi: "musl", static: true, distro: "alpine", release: "3.22", tier: "latest" },
+  {
+    os: "linux",
+    arch: "x64",
+    abi: "musl",
+    static: true,
+    baseline: true,
+    distro: "alpine",
+    release: "3.22",
+    tier: "latest",
+  },
   { os: "windows", arch: "x64", release: "2019", tier: "oldest" },
   { os: "windows", arch: "x64", release: "2019", baseline: true, tier: "oldest" },
 ];
@@ -429,6 +453,7 @@ function getBuildEnv(target, options) {
     ENABLE_CANARY: revision > 0 ? "ON" : "OFF",
     CANARY_REVISION: revision,
     ABI: abi === "musl" ? "musl" : undefined,
+    STATIC_MUSL: target.static ? "ON" : undefined,
     CMAKE_VERBOSE_MAKEFILE: "ON",
     CMAKE_TLS_VERIFY: "0",
   };

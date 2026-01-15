@@ -1115,7 +1115,16 @@ if(LINUX)
       -static-libstdc++
       -static-libgcc
     )
+  elseif(STATIC_MUSL)
+    # Fully static musl build: no dynamic dependencies at all
+    target_link_options(${bun} PUBLIC
+      -static              # Force all static linking
+      -static-libstdc++    # Static GNU C++ stdlib
+      -static-libgcc       # Static GCC runtime
+    )
+    message(STATUS "Building fully static musl binary")
   else()
+    # Dynamic musl build (existing behavior)
     target_link_options(${bun} PUBLIC
       -lstdc++
       -lgcc
@@ -1288,7 +1297,8 @@ endif()
 if(LINUX)
   target_link_libraries(${bun} PRIVATE c pthread dl)
 
-  if(USE_STATIC_LIBATOMIC)
+  # Force static libatomic for static musl builds
+  if(STATIC_MUSL OR USE_STATIC_LIBATOMIC)
     target_link_libraries(${bun} PRIVATE libatomic.a)
   else()
     target_link_libraries(${bun} PUBLIC libatomic.so)
@@ -1549,4 +1559,14 @@ if(NOT BUN_CPP_ONLY)
       )
     endif()
   endif()
+endif()
+
+# Static musl verification
+if(STATIC_MUSL AND EXISTS ${CMAKE_SOURCE_DIR}/scripts/verify-static-musl.sh)
+  add_custom_command(
+    TARGET ${bun} POST_BUILD
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/verify-static-musl.sh $<TARGET_FILE:${bun}>
+    COMMENT "Verifying static musl build"
+    VERBATIM
+  )
 endif()

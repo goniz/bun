@@ -1,0 +1,69 @@
+# Dockerfile for building fully static x86_64 Linux musl Bun binary
+# 
+# Usage:
+#   docker build -f Dockerfile.musl-static -t bun-musl-static-builder .
+#   docker run --rm -v $(pwd)/output:/output bun-musl-static-builder
+#
+# The static binary will be copied to ./output/bun
+
+FROM alpine:3.22
+
+# Install build dependencies
+RUN apk add --no-cache \
+    # Compilers and build tools (Bun requires Clang)
+    clang20 \
+    clang20-dev \
+    lld \
+    llvm20 \
+    cmake \
+    ninja \
+    make \
+    # Standard development tools
+    git \
+    perl \
+    bash \
+    ccache \
+    # Libraries and headers
+    linux-headers \
+    musl-dev \
+    libstdc++-dev \
+    # Rust/Cargo for some dependencies
+    cargo \
+    rust \
+    # Utilities
+    curl \
+    && ln -sf /usr/bin/clang-20 /usr/bin/clang \
+    && ln -sf /usr/bin/clang++-20 /usr/bin/clang++ \
+    && ln -sf /usr/bin/ld.lld /usr/bin/ld
+
+# Install Bun (needed for build process)
+RUN curl -fsSL https://bun.sh/install | bash \
+    && ln -s /root/.bun/bin/bun /usr/local/bin/bun
+
+# Set working directory
+WORKDIR /build
+
+# Copy source code
+COPY . .
+
+# Configure CMake for static musl build
+RUN cmake -GNinja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DABI=musl \
+    -DSTATIC_MUSL=ON \
+    -DCMAKE_C_COMPILER=clang-20 \
+    -DCMAKE_CXX_COMPILER=clang++-20 \
+    -DLLD_PROGRAM=/usr/bin/ld.lld \
+    .
+
+# Build Bun (with retry logic for transient failures)
+RUN ninja || ninja || ninja
+
+# Verify the binary is truly static
+RUN bash scripts/verify-static-musl.sh /build/bun
+
+# Default command: copy the binary to /output volume
+CMD ["sh", "-c", "cp /build/bun /output/bun && echo 'Static Bun binary copied to /output/bun' && ls -lh /output/bun"]
+
+# Alternative: Run the binary directly
+# ENTRYPOINT ["/build/bun"]

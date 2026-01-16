@@ -193,3 +193,12 @@ scripts/lldb-inline
 
 # We regenerate these in all the build scripts
 cmake/sources/*.txt
+
+# Build artifacts from static musl build
+lolhtml/
+mimalloc/
+tinycc/
+tmp_functions/
+tmp_modules/
+zlib/
+zstd/

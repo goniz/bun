@@ -46,6 +46,9 @@ WORKDIR /build
 # Copy source code
 COPY . .
 
+# Generate source list files (required before CMake configuration)
+RUN bun scripts/glob-sources.mjs
+
 # Configure CMake for static musl build
 RUN cmake -GNinja \
     -DCMAKE_BUILD_TYPE=Release \

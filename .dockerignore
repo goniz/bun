@@ -6,7 +6,9 @@
 .git
 examples
 node_modules
+# Exclude bun binaries but not source directories
 packages/**/bun
+!packages/@types/bun
 packages/**/bun-profile
 src/bun.js/WebKit
 src/bun.js/WebKit/LayoutTests

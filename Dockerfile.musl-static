@@ -5,8 +5,14 @@
 #   docker run --rm -v $(pwd)/output:/output bun-musl-static-builder
 #
 # The static binary will be copied to ./output/bun
+#
+# To preserve git commit info in the build:
+#   docker build -f Dockerfile.musl-static --build-arg GIT_SHA=$(git rev-parse HEAD) -t bun-musl-static-builder .
 
 FROM alpine:3.22
+
+# Accept git SHA as build argument (defaults to "unknown" if not provided)
+ARG GIT_SHA=unknown
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -46,27 +52,32 @@ WORKDIR /build
 # Copy source code
 COPY . .
 
-# Generate source list files (required before CMake configuration)
-RUN bun scripts/glob-sources.mjs
+# Initialize a minimal git repository to provide commit SHA for version info
+# This is needed because CMake's GenerateDependencyVersions.cmake uses git rev-parse HEAD
+RUN git init && \
+    git config user.email "docker@bun.sh" && \
+    git config user.name "Docker Build" && \
+    git add -A && \
+    git commit -m "Docker build at ${GIT_SHA}" --allow-empty && \
+    if [ "$GIT_SHA" != "unknown" ]; then \
+        git update-ref HEAD $GIT_SHA 2>/dev/null || echo "Warning: Could not set HEAD to $GIT_SHA"; \
+    fi
 
-# Configure CMake for static musl build
-RUN cmake -GNinja \
-    -DCMAKE_BUILD_TYPE=Release \
+# Build Bun using the official build script with static musl flags
+# The build script automatically runs glob-sources.mjs, configures CMake, and builds
+RUN bun run build:release \
     -DABI=musl \
     -DSTATIC_MUSL=ON \
     -DCMAKE_C_COMPILER=clang-20 \
     -DCMAKE_CXX_COMPILER=clang++-20 \
     -DLLD_PROGRAM=/usr/bin/ld.lld \
-    .
-
-# Build Bun (with retry logic for transient failures)
-RUN ninja || ninja || ninja
+    -B build/release
 
 # Verify the binary is truly static
-RUN bash scripts/verify-static-musl.sh /build/bun
+RUN bash scripts/verify-static-musl.sh build/release/bun
 
 # Default command: copy the binary to /output volume
-CMD ["sh", "-c", "cp /build/bun /output/bun && echo 'Static Bun binary copied to /output/bun' && ls -lh /output/bun"]
+CMD ["sh", "-c", "cp build/release/bun /output/bun && echo 'Static Bun binary copied to /output/bun' && ls -lh /output/bun"]
 
 # Alternative: Run the binary directly
-# ENTRYPOINT ["/build/bun"]
+# ENTRYPOINT ["build/release/bun"]
